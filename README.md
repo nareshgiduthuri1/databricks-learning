@@ -89,7 +89,7 @@ CREATE OR REFRESH STREAMING TABLE  catalog.schema.tableSCHEDULE EVERY 1 HOURAS
 
 ---
 
-resued_column, schema handling
+rescued_column, schema handling
 
 ---
 
@@ -101,13 +101,7 @@ Data Ingestion using Lakeflow Managed Connected
 
 Databricks provides additional features such as Lakehouse Federation, Zerobus, Delta Sharing, and Databricks Marketplace to expand data integration, sharing, and collaboration capabilities in the Lakehouse
 
-Lakehouse Federation
-
-Allows you to
-
-**query external data sources**
-
-without moving your data.
+Lakehouse Federation: Allows you to query external data sources without moving your data.
 
 Especially useful for:
 
@@ -116,18 +110,14 @@ Especially useful for:
 - The **exploratory phase** of new ETL pipelines or reports
 - Supporting workloads during **incremental migration**
 
-| Lakehouse Federation |   • Allows you to **query external data sources** without moving your data.
-Especially useful for:
-• **Ad hoc reporting**
-• **Proof-of-concept** work
-• The **exploratory phase** of new ETL pipelines or reports
-• Supporting workloads during **incremental migration** |
-| --- | --- |
-| **Zerobus *(coming soon)*** | A **LakeFlow Connect API** that allows developers to **write event data directly to their lakehouse** at very high throughput (100 MB/s) with near real-time latency (<5 seconds).**Simplify ingestion** for:IOT, Clickstreams, Telemetry, and more |
-| Delta Sharing | Allows you to **securely share data** across platforms, clouds, and regions. |
-
 ---
 
+**Zerobus *(coming soon)***: A **LakeFlow Connect API** that allows developers to **write event data directly to their lakehouse** at very high throughput (100 MB/s) with near real-time latency (<5 seconds).
+**Simplify ingestion** for:IOT, Clickstreams, Telemetry, and more
+
+Delta Sharing: Allows you to **securely share data** across platforms, clouds, and regions.
+
+---
 #### Deploy workloads with Lakeflow Jobs
 
 **Lakeflow Jobs** allows you to orchestrate every type of workload within Databricks, including notebooks, SQL queries, dashboards, pipelines, and much more.
@@ -136,7 +126,7 @@ Especially useful for:
 
 **Building blocks of Lakeflow Jobs:**
 
-1. **Jobs**  - Worflow, consists of one or more tasks **[ Notebooks, Delta Live tables, SQL Files/Queries, Python Scripts/Wheels, dbt, Java Jar File. etc]**.
+1. **Jobs**  - Worflow, consists of one or more tasks **[ Notebooks, Delta Live tables, SQL Files/Queries, Python Scripts/Wheels, dbt, Java Jar File. etc]**
     
     At Job level we can define
     
@@ -232,3 +222,67 @@ ORDER BY timeline.period_start_time
 - **Collaboration Benefits:** Multiple developers can collaborate on workflow development using standard Git workflows (branches, pull requests, code reviews) while maintaining production stability.
 
 ---
+#### Build Data Pipelines with Apache Spark Declarative Pipelines
+
+With Spark Declarative Pipelines, you can focus your ETL efforts by ingesting data using either batch or streaming method.
+
+1. **Batch ingestion** is designed for large volumes of data that arrive all at once.
+2. **Streaming ingestion**, on the other hand, handles data that flows continuously in small increments, enabling near real-time processing.
+
+Once your data is ingested, you’ll follow the medallion architecture to organize and refine it:
+
+- **Bronze** is the raw data ingestion layer in your lakehouse. Here, data is brought in as-is, sometimes with additional metadata columns added to provide context about the ingestion process.
+- **Silver** is where cleaning and transformation happen, turning raw data into a more usable and refined table.
+- **Gold** represents the final business-level aggregates designed for downstream use cases such as reporting, machine learning, AI, streaming analytics, and more.
+
+This structured approach helps ensure data quality and usability across your organization’s analytics and operational needs. Spark Declarative Pipelines make this entire process easy to create, monitor, and optimize, so you can focus on driving insights rather than managing complexity.
+
+Data Quality Rules in SDP
+
+1. **Expectations are data quality rules** defined using the `CONSTRAINT ... EXPECT (...)` syntax directly within your pipeline SQL — validating data row-by-row during ETL.
+2. **WARN** (the default action) logs violations and still writes invalid rows to the target — ideal for non-critical quality monitoring without interrupting the pipeline.
+3. **DROP** removes invalid rows from the output and logs the count — suitable for cases where bad data must be excluded but the pipeline should continue running.
+4. **FAIL** stops the specific flow when a violation occurs and requires manual intervention — used for critical data issues that must be resolved before downstream processing.
+5. **Multiple constraints** can coexist in a single table definition, each evaluated independently — giving you layered, granular control over data quality across all columns.
+
+```jsx
+CREATE OR REFRESH STREAMING TABLE 2_silver_db.orders_silver
+ (
+   CONSTRAINT valid_notifications EXPECT (notifications IN ('Y','N')),
+   CONSTRAINT valid_date EXPECT (order_timestamp > "2021-01-01") ON VIOLATION FAIL UPDATE,
+   CONSTRAINT valid_id EXPECT (customer_id IS NOT NULL) ON VIOLATION DROP ROW
+ )
+AS
+SELECT
+  order_id,
+  timestamp(order_timestamp) AS order_timestamp,
+  customer_id,
+  notifications
+FROM STREAM 1_bronze_db.orders_bronze;
+```
+
+---
+
+#### DevOps Essentials for Data Engineering
+
+1. **Maintain Modularized Code**
+    
+2. **DevOps Fundamentals**
+    
+    - The DevOps lifecycle is all about seamless collaboration between development and operations teams to deliver high-quality software
+    
+    **Data Ops:** DataOps is a subset of DevOps and applies DevOps to data engineering. It automates the management of data pipelines, ensuring smooth, reliable data flows from collection to processing. This means fewer bottlenecks and faster insights.
+    
+    ![dev1.png](backup/images/dev1.png)
+    
+3. **The Role of CI & CD**
+    
+    CI/CD process streamlines development of your data pipelines by automating testing and deployment, leading to faster, more reliable releases
+    
+    ![dev2.png](backup/images/dev2.png)
+    
+    **Testing Steps:**
+    
+    - System Tests: Test the entire application, ensuring that all parts function together in a real-world scenario.
+    - Integration Tests: Test the interaction between different components or systems. Ex: Notebooks / SDP/ Jobs interactions
+    - Unit Tests: Test individual functions or methods in isolation. Fast, low cost, high coverage, and automated. Ex: Custom pyspark functions
